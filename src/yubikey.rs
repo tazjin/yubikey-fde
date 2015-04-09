@@ -42,6 +42,7 @@ impl Error for YubikeyError {
             YubikeyError::EmptyCRChallenge   => "The specified challenge was empty",
             YubikeyError::UnknownError       => "An unknown error occured"
         }
+    }
 }
 
 impl Display for YubikeyError {
