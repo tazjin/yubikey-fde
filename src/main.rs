@@ -1,15 +1,14 @@
-#![feature(libc)]
-#![feature(rand)]
-#![feature(core)]
-#![feature(convert)]
-#![feature(as_slice)]
 #![feature(collections)]
+#![feature(convert)]
+#![feature(core)]
+#![feature(libc)]
 
+extern crate core;
 extern crate libc;
+extern crate rand;
 extern crate rustc_serialize;
 
-use rustc_serialize::hex::ToHex;
-use std::rand;
+use rand::*;
 
 mod yubikey;
 
@@ -24,9 +23,9 @@ fn random_challenge() -> Vec<u8> {
 fn main() {
     yubikey::yubikey_init();
     let yk = yubikey::get_yubikey();
-    let challenge = b"testtest";
-    //let challenge = random_challenge();
-    
+
+    let challenge = random_challenge();
+
     match yubikey::challenge_response(yk, 2, challenge.as_slice(), false) {
         Err(_)       => println!("error occured"),
         Ok(result) => println!("{}", result)
