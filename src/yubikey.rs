@@ -106,13 +106,8 @@ pub fn challenge_response(yk: Yubikey, slot: u8, challenge: &[u8], may_block: bo
         // that's not needed right now.
         Err(YubikeyError::UnknownError)
     } else {
-        // No stable feature to do this nicely
-        let mut response_vec = (&mut response).to_hex().into_bytes();
-        response_vec.truncate(40);
-
-        match String::from_utf8(response_vec) {
-            Ok(str) => Ok(str),
-            Err(_)  => Err(YubikeyError::UnknownError)
-        }
+        let mut response_str = (&mut response).to_hex();
+        response_str.truncate(40);
+        Ok(response_str)
     }
 }
