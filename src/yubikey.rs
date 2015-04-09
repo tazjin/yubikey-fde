@@ -1,8 +1,8 @@
-use libc::{c_int, c_uint, uint8_t, c_char};
-use std::slice;
-use std::ptr;
+use core::fmt;
+use libc::{c_int, c_uint, uint8_t};
 use rustc_serialize::hex::ToHex;
-use std::fmt::Error;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 
 #[repr(C)]
 struct YK_KEY;
@@ -27,19 +27,35 @@ impl Drop for YK_KEY {
 }
 
 /*****************************
-*  Safe interface to ykpers  *
-*****************************/
+ *  Safe interface to ykpers *
+ *****************************/
 
+#[derive(Debug)]
 pub enum YubikeyError { InvalidYubikeySlot,
                         EmptyCRChallenge,
                         UnknownError }
 
+impl Error for YubikeyError {
+    fn description(&self) -> &str {
+        match *self {
+            YubikeyError::InvalidYubikeySlot => "The selected Yubikey slot is invalid. Valid are 1, 2",
+            YubikeyError::EmptyCRChallenge   => "The specified challenge was empty",
+            YubikeyError::UnknownError       => "An unknown error occured"
+        }
+}
+
+impl Display for YubikeyError {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        formatter.write_str(self.description())
+    }
+}
+
 /* Opaque pointer to foreign Yubikey type. Under the hood this is just a handle
-*  for a USB device. */
+ *  for a USB device. */
 pub type Yubikey = *const YK_KEY;
 
 /* This function must be called at least once before using any of the Yubikey
-*  functionality. It initializes the Yubikey C library. */
+ *  functionality. It initializes the Yubikey C library. */
 pub fn yubikey_init() {
     unsafe { yk_init() };
 }
@@ -58,11 +74,6 @@ pub fn get_serial(yk: Yubikey) -> u32 {
     }
 }
 
-
-//#define SLOT_CHAL_HMAC1		0x30	/* Write 64 byte challenge to slot 1, get HMAC-SHA1 response */
-//#define SLOT_CHAL_HMAC2		0x38	/* Write 64 byte challenge to slot 2, get HMAC-SHA1 response */
-
-
 pub fn challenge_response(yk: Yubikey, slot: u8, challenge: &[u8], may_block: bool) -> Result<String, YubikeyError> {
     // Yubikey commands are defined in ykdef.h
     let yk_cmd = try!(match slot {
@@ -73,24 +84,24 @@ pub fn challenge_response(yk: Yubikey, slot: u8, challenge: &[u8], may_block: bo
 
     let challenge_len = challenge.len() as c_uint;
 
-    if (challenge_len == 0) {
+    if challenge_len == 0 {
         return Err(YubikeyError::EmptyCRChallenge);
     }
-    
+
     let response_len = 64; // Length of HMAC-SHA1 response
 
     let mut response = Vec::with_capacity(response_len as usize);
-    let mut cr_status = 0; // Return code to check *after* unsafe block
 
-    unsafe {
-        cr_status = yk_challenge_response(yk, yk_cmd, may_block as c_int,
-                                          challenge_len, challenge.as_ptr(),
-                                          response_len, response.as_mut_ptr());
+    let rc = unsafe {
+        let cr_status = yk_challenge_response(yk, yk_cmd, may_block as c_int,
+                                              challenge_len, challenge.as_ptr(),
+                                              response_len, response.as_mut_ptr());
 
         response.set_len(response_len as usize);
-    }
+        cr_status
+    };
 
-    if (cr_status == 0) {
+    if rc == 0 {
         // There's some way to get a better error code from the Yubikey, but
         // that's not needed right now.
         Err(YubikeyError::UnknownError)
