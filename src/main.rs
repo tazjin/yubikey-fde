@@ -19,14 +19,22 @@ fn random_challenge() -> Vec<u8> {
     vec
 }
 
-fn main() {
+fn yubikey_testing() -> Result<(), yubikey::YubikeyError> {
     yubikey::yubikey_init();
-    let yk = yubikey::get_yubikey();
 
+    let yk = try!(yubikey::get_yubikey());
     let challenge = &random_challenge();
+    let result = try!(yubikey::challenge_response(yk, 2, challenge, false));
 
-    match yubikey::challenge_response(yk, 2, challenge, false) {
-        Err(_)     => println!("error occured"),
-        Ok(result) => println!("{}", result)
+    println!("{}", result);
+    Ok(())
+}
+
+fn main() {
+    askpass::watch_ask_loop(3);
+
+    match yubikey_testing() {
+        Err(err)   => println!("{}", err),
+        Ok(result) => {}
     }
 }

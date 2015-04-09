@@ -31,6 +31,7 @@ impl Drop for YK_KEY {
 
 #[derive(Debug)]
 pub enum YubikeyError { InvalidYubikeySlot,
+                        NoYubikeyConnected,
                         EmptyCRChallenge,
                         UnknownError }
 
@@ -38,6 +39,7 @@ impl Error for YubikeyError {
     fn description(&self) -> &str {
         match *self {
             YubikeyError::InvalidYubikeySlot => "The selected Yubikey slot is invalid. Valid are 1, 2",
+            YubikeyError::NoYubikeyConnected => "No Yubikey connected",
             YubikeyError::EmptyCRChallenge   => "The specified challenge was empty",
             YubikeyError::UnknownError       => "An unknown error occured"
         }
@@ -61,8 +63,13 @@ pub fn yubikey_init() {
 }
 
 /* Returns the first plugged in Yubikey. */
-pub fn get_yubikey() -> Yubikey {
-    unsafe { yk_open_first_key() }
+pub fn get_yubikey() -> Result<Yubikey, YubikeyError> {
+    let yk = unsafe { yk_open_first_key() };
+    if yk.is_null() { // Probably no Yubikey connected
+        Err(YubikeyError::NoYubikeyConnected)
+    } else {
+        Ok(yk)
+    }
 }
 
 /* Returns the serial number of the Yubikey */
