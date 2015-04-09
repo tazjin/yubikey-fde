@@ -1,12 +1,14 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
+extern crate inotify;
 extern crate libc;
 extern crate rand;
 extern crate rustc_serialize;
 
 use rand::*;
 
+mod askpass;
 mod yubikey;
 
 fn random_challenge() -> Vec<u8> {
