@@ -1,4 +1,5 @@
-//#![feature(libc)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
 
 extern crate libc;
 extern crate rand;
@@ -23,7 +24,7 @@ fn main() {
     let challenge = &random_challenge();
 
     match yubikey::challenge_response(yk, 2, challenge, false) {
-        Err(_)       => println!("error occured"),
+        Err(_)     => println!("error occured"),
         Ok(result) => println!("{}", result)
     }
 }
