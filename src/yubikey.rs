@@ -1,8 +1,7 @@
-use core::fmt;
 use libc::{c_int, c_uint, uint8_t};
 use rustc_serialize::hex::ToHex;
 use std::error::Error;
-use std::fmt::{Display, Formatter};
+use std::fmt;
 
 #[repr(C)]
 struct YK_KEY;
@@ -45,8 +44,8 @@ impl Error for YubikeyError {
     }
 }
 
-impl Display for YubikeyError {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+impl fmt::Display for YubikeyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str(self.description())
     }
 }
@@ -107,9 +106,13 @@ pub fn challenge_response(yk: Yubikey, slot: u8, challenge: &[u8], may_block: bo
         // that's not needed right now.
         Err(YubikeyError::UnknownError)
     } else {
-        // There must be a better way to do this, but I'm not sure what it is yet
-        let response_str =
-            String::from_str(response.as_slice().to_hex().as_str().slice_chars(0,40));
-        Ok(response_str)
+        // No stable feature to do this nicely
+        let mut response_vec = (&mut response).to_hex().into_bytes();
+        response_vec.truncate(40);
+
+        match String::from_utf8(response_vec) {
+            Ok(str) => Ok(str),
+            Err(_)  => Err(YubikeyError::UnknownError)
+        }
     }
 }

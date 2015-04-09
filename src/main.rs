@@ -1,9 +1,5 @@
-#![feature(collections)]
-#![feature(convert)]
-#![feature(core)]
-#![feature(libc)]
+//#![feature(libc)]
 
-extern crate core;
 extern crate libc;
 extern crate rand;
 extern crate rustc_serialize;
@@ -24,9 +20,9 @@ fn main() {
     yubikey::yubikey_init();
     let yk = yubikey::get_yubikey();
 
-    let challenge = random_challenge();
+    let challenge = &random_challenge();
 
-    match yubikey::challenge_response(yk, 2, challenge.as_slice(), false) {
+    match yubikey::challenge_response(yk, 2, challenge, false) {
         Err(_)       => println!("error occured"),
         Ok(result) => println!("{}", result)
     }

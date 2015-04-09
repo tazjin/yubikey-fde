@@ -6,3 +6,4 @@ authors = ["Vincent Ambo <vincent@kivra.com>"]
 [dependencies]
 rustc-serialize = "0.3"
 rand = "0.3"
+libc = "0.1.6"
