@@ -4,7 +4,8 @@ version = "0.0.1"
 authors = ["Vincent Ambo <vincent@kivra.com>"]
 
 [dependencies]
-rustc-serialize = "0.3"
-rand = "0.3"
-libc = "0.1.6"
 inotify = "0.1.11"
+libc = "0.1.6"
+rand = "0.3"
+rust-ini = "0.4.3"
+rustc-serialize = "0.3"

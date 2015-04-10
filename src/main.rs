@@ -1,6 +1,7 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
+extern crate ini;
 extern crate inotify;
 extern crate libc;
 extern crate rand;
@@ -9,6 +10,7 @@ extern crate rustc_serialize;
 use rand::*;
 
 mod askpass;
+mod socket;
 mod yubikey;
 
 fn random_challenge() -> Vec<u8> {
@@ -31,7 +33,7 @@ fn yubikey_testing() -> Result<(), yubikey::YubikeyError> {
 }
 
 fn main() {
-    askpass::watch_ask_loop(3);
+    askpass::watch_ask_loop(30);
 
     match yubikey_testing() {
         Err(err)   => println!("{}", err),
