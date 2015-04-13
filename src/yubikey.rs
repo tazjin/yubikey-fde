@@ -2,6 +2,7 @@ use libc::{c_int, c_uint, uint8_t};
 use rustc_serialize::hex::ToHex;
 use std::error::Error;
 use std::fmt;
+use std::io;
 
 #[repr(C)]
 struct YK_KEY;
@@ -33,7 +34,7 @@ impl Drop for YK_KEY {
 pub enum YubikeyError { InvalidYubikeySlot,
                         NoYubikeyConnected,
                         EmptyCRChallenge,
-                        UnknownError }
+                        OtherError(io::Error) }
 
 impl Error for YubikeyError {
     fn description(&self) -> &str {
@@ -41,7 +42,7 @@ impl Error for YubikeyError {
             YubikeyError::InvalidYubikeySlot => "The selected Yubikey slot is invalid. Valid are 1, 2",
             YubikeyError::NoYubikeyConnected => "No Yubikey connected",
             YubikeyError::EmptyCRChallenge   => "The specified challenge was empty",
-            YubikeyError::UnknownError       => "An unknown error occured"
+            YubikeyError::OtherError(ref e)  => e.description()
         }
     }
 }
@@ -52,69 +53,92 @@ impl fmt::Display for YubikeyError {
     }
 }
 
-/* Opaque pointer to foreign Yubikey type. Under the hood this is just a handle
- *  for a USB device. */
-pub type Yubikey = *const YK_KEY;
-
-/* This function must be called at least once before using any of the Yubikey
- *  functionality. It initializes the Yubikey C library. */
-pub fn yubikey_init() {
-    unsafe { yk_init() };
+/// Internal function used to retrieve and wrap the last error from libykpers
+fn last_yk_error() -> YubikeyError {
+    YubikeyError::OtherError(io::Error::last_os_error())
 }
 
-/* Returns the first plugged in Yubikey. */
-pub fn get_yubikey() -> Result<Yubikey, YubikeyError> {
-    let yk = unsafe { yk_open_first_key() };
-    if yk.is_null() { // Probably no Yubikey connected
-        Err(YubikeyError::NoYubikeyConnected)
-    } else {
-        Ok(yk)
-    }
+/// Opaque pointer to foreign Yubikey type. Under the hood this is just a handle
+/// for a USB device.
+pub struct Yubikey {
+    /// Foreign pointer to the USB handle
+    yk: *const YK_KEY
 }
 
-/* Returns the serial number of the Yubikey */
-pub fn get_serial(yk: Yubikey) -> u32 {
-    unsafe {
-        let mut serial: c_uint = 0;
-        yk_get_serial(yk, 0, 0, &mut serial);
-        serial as u32
-    }
-}
-
-pub fn challenge_response(yk: Yubikey, slot: u8, challenge: &[u8], may_block: bool) -> Result<String, YubikeyError> {
-    // Yubikey commands are defined in ykdef.h
-    let yk_cmd = try!(match slot {
-        1 => Ok(0x30), //#define SLOT_CHAL_HMAC1 0x30
-        2 => Ok(0x38), //#define SLOT_CHAL_HMAC2 0x38
-        _ => Err(YubikeyError::InvalidYubikeySlot)
-    });
-
-    let challenge_len = challenge.len() as c_uint;
-
-    if challenge_len == 0 {
-        return Err(YubikeyError::EmptyCRChallenge);
+impl Yubikey {
+    /// Connects to the first available Yubikey
+    pub fn get_yubikey() -> Result<Yubikey, YubikeyError> {
+        unsafe { yk_init() };
+        let yk = unsafe { yk_open_first_key() };
+        if yk.is_null() { // Probably no Yubikey connected
+            Err(YubikeyError::NoYubikeyConnected)
+        } else {
+            Ok(Yubikey{ yk: yk })
+        }
     }
 
-    let response_len = 64; // Length of HMAC-SHA1 response
+    /// Returns the serial number of the Yubikey
+    pub fn get_serial(&self) -> Result<u32, YubikeyError> {
+        unsafe {
+            let mut serial: c_uint = 0;
+            match yk_get_serial(self.yk, 0, 0, &mut serial) {
+                0 => Err(last_yk_error()),
+                _ => Ok(serial as u32)
+            }
+        }
+    }
 
-    let mut response = Vec::with_capacity(response_len as usize);
+    /// Handles a HMAC-SHA1 challenge-response interaction with a Yubikey.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yubikey::Yubikey;
+    ///
+    /// let yk = try!(Yubikey::get_yubikey());
+    /// yk.challenge_response(&some_byte_slice, false)
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// This function can fail in several different ways at a lower level, in
+    /// which case the exact error is returned as a `YubikeyError`.
+    /// This could be unrecoverable errors such as unplugged Yubikeys.
+    pub fn challenge_response(&self, slot: u8, challenge: &[u8],
+                              may_block: bool) -> Result<String, YubikeyError> {
+        // Yubikey commands are defined in ykdef.h
+        let yk_cmd = try!(match slot {
+            1 => Ok(0x30), //#define SLOT_CHAL_HMAC1 0x30
+            2 => Ok(0x38), //#define SLOT_CHAL_HMAC2 0x38
+            _ => Err(YubikeyError::InvalidYubikeySlot)
+        });
 
-    let rc = unsafe {
-        let cr_status = yk_challenge_response(yk, yk_cmd, may_block as c_int,
-                                              challenge_len, challenge.as_ptr(),
-                                              response_len, response.as_mut_ptr());
+        let challenge_len = challenge.len() as c_uint;
 
-        response.set_len(response_len as usize);
-        cr_status
-    };
+        if challenge_len == 0 {
+            return Err(YubikeyError::EmptyCRChallenge);
+        }
 
-    if rc == 0 {
-        // There's some way to get a better error code from the Yubikey, but
-        // that's not needed right now.
-        Err(YubikeyError::UnknownError)
-    } else {
-        let mut response_str = (&mut response).to_hex();
-        response_str.truncate(40);
-        Ok(response_str)
+        let response_len = 64; // Length of HMAC-SHA1 response
+
+        let mut response = Vec::with_capacity(response_len as usize);
+
+        let rc = unsafe {
+            let cr_status =
+                yk_challenge_response(self.yk, yk_cmd, may_block as c_int,
+                                      challenge_len, challenge.as_ptr(),
+                                      response_len, response.as_mut_ptr());
+
+            response.set_len(response_len as usize);
+            cr_status
+        };
+
+        if rc == 0 {
+            Err(last_yk_error())
+        } else {
+            let mut response_str = (&mut response).to_hex();
+            response_str.truncate(40);
+            Ok(response_str)
+        }
     }
 }
