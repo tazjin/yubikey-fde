@@ -1,0 +1,11 @@
+# This will start the process that checks for incoming password requests
+# from systemd and responds with the Yubikey challenge-response
+[Unit]
+Description=Dispatch Password Requests to Yubikey
+Documentation=man:yubikey-fde(8)
+DefaultDependencies=no
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+ExecStart=/usr/bin/yubikey-fde --respond

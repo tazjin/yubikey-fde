@@ -1,0 +1,7 @@
+#!/bin/bash
+
+build() {
+    # add_systemd_unit will automatically add required binary
+    add_systemd_unit systemd-ask-ykfde.path
+    add_systemd_unit systemd-ask-ykfde.service
+}

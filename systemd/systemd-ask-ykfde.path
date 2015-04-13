@@ -1,0 +1,15 @@
+# This unit will start the yubikey-fde(8) dispatch unit once a systemd-ask
+# is placed in the /run/systemd/ask-password folder.
+[Unit]
+Description=Dispatch Password Requests to Yubikey Directory Watch
+Documentation=man:yubikey-fde(8)
+DefaultDependencies=no
+Conflicts=shutdown.target
+Before=cryptsetup.target paths.target shutdown.target
+
+[Path]
+DirectoryNotEmpty=/run/systemd/ask-password
+MakeDirectory=yes
+
+[Install]
+WantedBy=cryptsetup.target
