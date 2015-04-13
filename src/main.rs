@@ -8,6 +8,7 @@ extern crate rand;
 extern crate rustc_serialize;
 
 use rand::*;
+use std::io::ErrorKind;
 
 mod askpass;
 mod socket;
@@ -33,10 +34,13 @@ fn yubikey_testing() -> Result<(), yubikey::YubikeyError> {
 }
 
 fn main() {
-    askpass::watch_ask_loop(30);
-
-    match yubikey_testing() {
-        Err(err)   => println!("{}", err),
-        Ok(result) => {}
+    println!("Checking for existing systemd-asks");
+    match askpass::check_existing_asks() {
+        Ok(()) => println!("Done, exiting"),
+        Err(ref e) if e.kind() == ErrorKind::Other => {
+            println!("No existing asks. Monitoring ask folder.");
+            askpass::watch_ask_loop(20)
+        }
+        Err(e) => panic!(e)
     }
 }

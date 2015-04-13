@@ -4,17 +4,44 @@ http://www.freedesktop.org/wiki/Software/systemd/PasswordAgents/ */
 use ini::Ini;
 use inotify::INotify;
 use inotify::ffi::*;
-use inotify::wrapper::Event;
-use std::ffi::CString;
-use std::io::Result;
+use std::ffi::{CString, OsStr};
+use std::io::{Result, Error, ErrorKind};
 use std::path::Path;
 use std::thread::sleep_ms;
+use std::fs;
 
 use socket;
 use yubikey;
 
 const SYSTEMD_ASK_PATH: &'static str = "/run/systemd/ask-password";
 const SYSTEMD_ASK_MSG: &'static str = "Please enter passphrase for disk";
+
+#[doc = "Check for existing ask requests before starting the watch loop"]
+pub fn check_existing_asks() -> Result<()> {
+    let ask_dir = Path::new(SYSTEMD_ASK_PATH);
+    //    if ask_dir.is_dir() {} // This isn't stable yet
+    for entry in try!(fs::read_dir(ask_dir)) {
+        let entry = try!(entry);
+        let entry_path =  entry.path();
+        if handle_existing(entry_path.as_path()) {
+            return Ok(())
+        }
+    }
+
+    return Err(Error::new(ErrorKind::Other, "No existing asks found"));
+}
+
+#[doc = "Checks whether an existing file has the correct prefix before dispatching.
+Return value indicates whether an event was handled or not."]
+fn handle_existing(filepath: &Path) -> bool {
+    let ask_name = OsStr::new("ask");
+    let stem = filepath.file_stem();
+    let filename = filepath.to_string_lossy().to_string();
+    match stem {
+        Some(s) if s == ask_name => handle_ask(&filename),
+        _ => false
+    }
+}
 
 #[doc = "Watch systemd's ask password folder for incoming requests."]
 #[allow(unused_must_use)]
@@ -32,7 +59,8 @@ pub fn watch_ask_loop(mut timeout: u8) {
         let events = ino.available_events().unwrap();
         for event in events.iter() {
             if event.name.starts_with("ask.") {
-                if handle_ask(event) {
+                let filepath = format!("{}/{}", SYSTEMD_ASK_PATH, event.name);
+                if handle_ask(&filepath) {
                     break 'outer;
                 }
             }
@@ -44,14 +72,13 @@ pub fn watch_ask_loop(mut timeout: u8) {
 }
 
 fn get_challenge() -> &'static [u8] {
-    b"testtest"
+    b"iCaiyoosashohm5yeiRi"
 }
 
 #[doc = "Handles an incoming inotify event. The return value does not indicate
 success or failure, rather it indicates whether or not the event was a disk
 decryption password request."]
-fn handle_ask(event: &Event) -> bool {
-    let filepath = format!("{}/{}", SYSTEMD_ASK_PATH, event.name);
+fn handle_ask(filepath: &String) -> bool {
     println!("Reading file {}", filepath);
 
     // We need to know the Message to check if this ask is for a disk password
