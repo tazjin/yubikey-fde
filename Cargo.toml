@@ -1,5 +1,5 @@
 [package]
-name = "ykrs"
+name = "yubikey-fde"
 version = "0.0.1"
 authors = ["Vincent Ambo <vincent@kivra.com>"]
 
