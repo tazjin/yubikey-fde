@@ -1,14 +1,14 @@
 /* Implements a systemd password agent as per
 http://www.freedesktop.org/wiki/Software/systemd/PasswordAgents/ */
 
-use ini::Ini;
 use inotify::INotify;
 use inotify::ffi::*;
 use std::ffi::{CString, OsStr};
-use std::fs;
-use std::io::{Result, Error, ErrorKind};
+use std::fs::{self, File};
+use std::io::{Read, Result, Error, ErrorKind};
 use std::path::Path;
 use std::thread::sleep_ms;
+use regex::Regex;
 
 use socket;
 use yubikey;
@@ -36,10 +36,9 @@ Return value indicates whether an event was handled or not."]
 fn handle_existing(filepath: &Path) -> bool {
     let ask_name = OsStr::new("ask");
     let stem = filepath.file_stem();
-    let filename = filepath.to_string_lossy().to_string();
 
     match stem {
-        Some(s) if s == ask_name => handle_ask(&filename),
+        Some(s) if s == ask_name => handle_ask(filepath),
         _ => false
     }
 }
@@ -60,7 +59,8 @@ pub fn watch_ask_loop(mut timeout: u8) {
         let events = ino.available_events().unwrap();
         for event in events.iter() {
             if event.name.starts_with("ask.") {
-                let filepath = format!("{}/{}", SYSTEMD_ASK_PATH, event.name);
+                let full_path = format!("{}/{}", SYSTEMD_ASK_PATH, event.name);
+                let filepath = Path::new(&full_path);
                 if handle_ask(&filepath) {
                     break 'outer;
                 }
@@ -79,12 +79,12 @@ fn get_challenge() -> &'static [u8] {
 #[doc = "Handles an incoming inotify event. The return value does not indicate
 success or failure, rather it indicates whether or not the event was a disk
 decryption password request."]
-fn handle_ask(filepath: &String) -> bool {
+fn handle_ask(filepath: &Path) -> bool {
     let mut is_pw_ask = false;
 
-    match Ini::load_from_file(&filepath) {
-        Err(e)      => println!("{}", e),
-        Ok(mut ask) => match parse_event(&mut ask, &mut is_pw_ask) {
+    match fs::File::open(filepath) {
+        Err(e)   => println!("{}", e),
+        Ok(mut file) => match parse_ask(&mut file, &mut is_pw_ask) {
             Ok(_)  => println!("Responded successfully"),
             Err(e) => println!("{}", e)
         }
@@ -93,21 +93,39 @@ fn handle_ask(filepath: &String) -> bool {
     is_pw_ask
 }
 
-fn parse_event(ask: &mut Ini, is_pw_ask: &mut bool) -> Result<()> {
-    ask.begin_section("Ask");
-    let ask_message = ask.get("Message").unwrap();
-    let socket_path = ask.get("Socket").unwrap();
+fn parse_ask(file: &mut File, is_pw_ask: &mut bool) -> Result<()> {
     let challenge = get_challenge();
 
-    // NYI: kill(PID, 0) -> if ESRCH ignore file (this is in the spec)
-    // Currently the only kill() in Rust is deprecated so I'm gonna wait
-    if ask_message.to_string().starts_with(SYSTEMD_ASK_MSG) {
+    let mut file_content = String::new();
+    try!(file.read_to_string(&mut file_content));
+
+    if file_content.contains(SYSTEMD_ASK_MSG) {
         *is_pw_ask = true;
-        handle_respond(challenge, socket_path)
+        match capture_socket(&file_content) {
+            None => Ok(()),
+            Some(socket) => handle_respond(challenge, &socket)
+        }
     } else {
         Ok(())
     }
 
+    // NYI: kill(PID, 0) -> if ESRCH ignore file (this is in the spec)
+    // Currently the only kill() in Rust is deprecated so I'm gonna wait
+}
+
+#[doc = "Extracts Socket address from an ask file using regexes. An unsafe
+function is being used because the safe alternative is not marked as stable
+yet. Rust ensures that content is not mutable in the context of this function."]
+fn capture_socket(content: &str) -> Option<String> {
+    let sock_reg = Regex::new(r"(?m)^Socket=(.*)$").unwrap();
+    match sock_reg.find(&content) {
+        None => None,
+        Some((start, end)) => {
+            let socket =
+                unsafe { content.slice_unchecked(start + 7, end).to_string() };
+            Some(socket)
+        }
+    }
 }
 
 fn handle_respond(challenge: &[u8], socket_path: &str) -> Result<()> {

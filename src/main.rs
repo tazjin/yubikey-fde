@@ -1,10 +1,10 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-extern crate ini;
 extern crate inotify;
 extern crate libc;
 extern crate rand;
+extern crate regex;
 extern crate rustc_serialize;
 
 use rand::*;
@@ -35,6 +35,7 @@ fn yubikey_testing() -> Result<(), yubikey::YubikeyError> {
 
 fn main() {
     println!("Checking for existing systemd-asks");
+
     match askpass::check_existing_asks() {
         Ok(()) => println!("Done, exiting"),
         Err(ref e) if e.kind() == ErrorKind::Other => {

@@ -7,5 +7,5 @@ authors = ["Vincent Ambo <vincent@kivra.com>"]
 inotify = "0.1.11"
 libc = "0.1.6"
 rand = "0.3"
-rust-ini = "0.4.3"
+regex = "0.1.27"
 rustc-serialize = "0.3"
