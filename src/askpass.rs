@@ -5,10 +5,10 @@ use ini::Ini;
 use inotify::INotify;
 use inotify::ffi::*;
 use std::ffi::{CString, OsStr};
+use std::fs;
 use std::io::{Result, Error, ErrorKind};
 use std::path::Path;
 use std::thread::sleep_ms;
-use std::fs;
 
 use socket;
 use yubikey;
@@ -37,6 +37,7 @@ fn handle_existing(filepath: &Path) -> bool {
     let ask_name = OsStr::new("ask");
     let stem = filepath.file_stem();
     let filename = filepath.to_string_lossy().to_string();
+
     match stem {
         Some(s) if s == ask_name => handle_ask(&filename),
         _ => false
@@ -79,30 +80,34 @@ fn get_challenge() -> &'static [u8] {
 success or failure, rather it indicates whether or not the event was a disk
 decryption password request."]
 fn handle_ask(filepath: &String) -> bool {
-    println!("Reading file {}", filepath);
+    let mut is_pw_ask = false;
 
-    // We need to know the Message to check if this ask is for a disk password
-    // and also what socket to send our response to.
-    let mut ask = Ini::load_from_file(&filepath).unwrap();
+    match Ini::load_from_file(&filepath) {
+        Err(e)      => println!("{}", e),
+        Ok(mut ask) => match parse_event(&mut ask, &mut is_pw_ask) {
+            Ok(_)  => println!("Responded successfully"),
+            Err(e) => println!("{}", e)
+        }
+    }
+
+    is_pw_ask
+}
+
+fn parse_event(ask: &mut Ini, is_pw_ask: &mut bool) -> Result<()> {
     ask.begin_section("Ask");
-    let ask_message = ask.get("Message").unwrap().to_string();
+    let ask_message = ask.get("Message").unwrap();
     let socket_path = ask.get("Socket").unwrap();
     let challenge = get_challenge();
 
-    if ask_message.starts_with(SYSTEMD_ASK_MSG) {
-        // NYI: kill(PID, 0) -> if ESRCH ignore file (this is in the spec)
-        // Currently the only kill() in Rust is deprecated so I'm gonna wait
-
-        let result = handle_respond(challenge, socket_path);
-        match result {
-            Ok(_)  => println!("Responded successfully"),
-            Err(e) => panic!("{}", e)
-        }
-
-        return true;
+    // NYI: kill(PID, 0) -> if ESRCH ignore file (this is in the spec)
+    // Currently the only kill() in Rust is deprecated so I'm gonna wait
+    if ask_message.to_string().starts_with(SYSTEMD_ASK_MSG) {
+        *is_pw_ask = true;
+        handle_respond(challenge, socket_path)
+    } else {
+        Ok(())
     }
 
-    return false;
 }
 
 fn handle_respond(challenge: &[u8], socket_path: &str) -> Result<()> {
