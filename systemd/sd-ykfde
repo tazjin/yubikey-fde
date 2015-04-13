@@ -4,4 +4,8 @@ build() {
     # add_systemd_unit will automatically add required binary
     add_systemd_unit systemd-ask-ykfde.path
     add_systemd_unit systemd-ask-ykfde.service
+
+    # systemctl can't seem to enable into the correct folder
+    add_symlink /usr/lib/systemd/system/systemd-ask-ykfde.path \
+                /usr/lib/systemd/system/sysinit.target.wants/systemd-ask-ykfde.path
 }
