@@ -12,4 +12,4 @@ DirectoryNotEmpty=/run/systemd/ask-password
 MakeDirectory=yes
 
 [Install]
-WantedBy=cryptsetup.target
+WantedBy=sysinit.target
