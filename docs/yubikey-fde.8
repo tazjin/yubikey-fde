@@ -1,0 +1,67 @@
+.TH YUBIKEY-FDE 8 "2015-04-14" Linux "Yubikey full-disk-encryption"
+.SH NAME
+yubikey-fde \- Challenge-response based FDE with Yubikeys, cryptsetup(8) and systemd(1)
+.SH DESCRIPTION
+.B yubikey-fde
+allows storing disk encryption keys for use with
+.B cryptsetup(8)
+on a Yubikey. It requires disk decryption to be handled by
+.B systemd(1)
+because it sends decryption keys in response to
+.B systemd-ask-password(1)
+queries.
+.PP
+A requirement for full-disk-encryption is that the program can run early enough in the
+boot process to handle decryption of the root disk.
+ To handle this yubikey-fde needs to be added to the initial ramdisk.
+.PP
+.SS "Arch Linux"
+ On Arch Linux creating the initramfs is handled by
+.B mkinitcpio(8)
+which yubikey-fde supports by default. If the program is installed correctly, a hook
+named
+.B sd-ykfde
+should be present. This hook is then placed in the mkinitcpio configuration, where it
+should be inserted after the
+.B sd-encrypt
+hook. Using systemd inside the ramdisk is a requirement.
+.PP
+.SS "RedHat / CentOS / Fedora"
+ These systems use
+.B dracut(8)
+for building the initial ramdisk. This is still work-in-progress but should be supported
+soon.
+.PP
+.SS "Enrolling"
+ To enroll a disk for use with yubikey-fde a challenge file needs to be created. The
+.B yubikey-fde-enroll(8)
+script can be used to create the initial challenge, after which the resulting key needs
+to be added to the LUKS device using
+.B cryptsetup(8).
+ After enrolling, it is simple to test whether yubikey-fde functions correctly. The
+program should be started with administrator privileges and a password should be
+requested from it using
+.B systemd-ask-password(1)
+like so:
+.PP
+.RS
+systemd-ask-password --no-tty "Please enter passphrase for disk test..."
+.RE
+.PP
+yubikey-fde-enroll should respond to this request and the previously created passphrase
+should be returned.
+.SH FILES
+.B "/etc/yubikey-fde/"
+ This folder stores challenge files created by
+.B yubikey-fde-enroll(8)
+and might contain additional configuration in the future.
+.SH NOTES
+This tool is pending support for several mission-critical features, such as automatically
+replacing challenges after successful boots. Track the progress of these in the source
+repository at
+.I https://github.com/tazjin/yubikey-fde
+.SH SEE ALSO
+systemd(1), systemd-ask-password(1), ykchalresp(1) initrd(4), cryptsetup(8), dracut(8),
+mkinitcpio(8)
+.SH AUTHOR
+Vincent Ambo <tazjin@gmail.com>
