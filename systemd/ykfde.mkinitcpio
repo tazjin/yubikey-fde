@@ -9,3 +9,12 @@ build() {
     add_symlink /usr/lib/systemd/system/sysinit.target.wants/systemd-ask-ykfde.path \
                 /usr/lib/systemd/system/systemd-ask-ykfde.path
 }
+
+help() {
+    cat <<HELPEOF
+This hook allows for retrieving encrypted root device passphrases from a
+Yubikey challenge-response.
+
+See the manpage of yubikey-fde(8) for more information.
+HELPEOF
+}
