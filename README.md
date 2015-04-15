@@ -27,6 +27,11 @@ slot.
 If you are on ArchLinux, you should be able to just run `makepkg`. You will need to have `rust` as well as
 `cargo-bin` and `yubikey-personalization-git` from AUR installed.
 
+On RPM-based distributions (tested on CentOS 7) you can use the `yubikey-fde.spec` to build a package with
+`rpmbuild`. Please note that Rust is not yet in any repositories so I could not add a build dependency for
+it to the spec, make sure you have Rust (and Cargo) installed before attempting to build.
+This will be fixed once a package becomes available.
+
 On other systems, ensure you have the equivalents to those dependencies and run `cargo build` to build the
 program. You will need to set up `systemd` units and `initramfs` generation manually, though Dracut support
 is [in the works][].

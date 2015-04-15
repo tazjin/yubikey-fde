@@ -29,8 +29,18 @@ hook. Using systemd inside the ramdisk is a requirement.
 .SS "RedHat / CentOS / Fedora"
  These systems use
 .B dracut(8)
-for building the initial ramdisk. This is still work-in-progress but should be supported
-soon.
+for building the initial ramdisk. If yubikey-fde is installed properly, the dracut
+module to embed it in the ramdisk will be placed in
+.I /usr/lib/dracut/modules.d/98ykfde/
+and it should be possible to regenerate the ramdisk using
+.PP
+.RS
+dracut -vf
+.RE
+.PP
+Refer to
+.B dracut(8)
+for more information about this process.
 .PP
 .SS "Enrolling"
  To enroll a disk for use with yubikey-fde a challenge file needs to be created. The
