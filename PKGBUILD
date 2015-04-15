@@ -27,7 +27,7 @@ package() {
   install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/yubikey-fde/LICENSE"
   install -Dm644 "docs/yubikey-fde.8" "${pkgdir}/usr/share/man/man8/yubikey-fde.8"
   install -Dm755 "target/release/yubikey-fde" "${pkgdir}/usr/bin/yubikey-fde"
-  install -Dm644 "systemd/sd-ykfde" "${pkgdir}/usr/lib/initcpio/install/sd-ykfde"
+  install -Dm644 "systemd/ykfde.mkinitcpio" "${pkgdir}/usr/lib/initcpio/install/ykfde"
   install -Dm644 "systemd/systemd-ask-ykfde.path" "${pkgdir}/usr/lib/systemd/system/systemd-ask-ykfde.path"
   install -Dm644 "systemd/systemd-ask-ykfde.service" "${pkgdir}/usr/lib/systemd/system/systemd-ask-ykfde.service"
 }

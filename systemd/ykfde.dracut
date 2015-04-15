@@ -1,0 +1,21 @@
+#!/bin/bash
+# Dracut module according to dracut.modules(7)
+
+check() {
+    return 0
+}
+
+depends() {
+    echo systemd
+    return 0
+}
+
+install() {
+    inst_multiple \
+        "/usr/bin/yubikey-fde" \
+        "${systemdsystemunitdir}/systemd-ask-ykfde.path" \
+        "${systemdsystemunitdir}/systemd-ask-ykfde.service"
+
+    ln_r "${systemdsystemunitdir}/systemd-ask-ykfde.path" \
+         "${systemdsystemunitdir}/sysinit.target.wants/systemd-ask-ykfde.path"
+}

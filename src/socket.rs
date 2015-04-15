@@ -2,11 +2,11 @@
  * this in the future.
  * Thanks to @gcourier for his rust-syslog library which I used as a reference. */
 
-use std::os::unix::io::RawFd;
-use std::mem;
-use std::io::{Result, Error, ErrorKind};
-use std::ffi::CString;
 use libc;
+use std::ffi::CString;
+use std::io::{Result, Error, ErrorKind};
+use std::mem;
+use std::os::unix::io::RawFd;
 
 fn construct_sockaddr(path: &CString) -> Result<(libc::sockaddr_storage, usize)> {
     assert!(mem::size_of::<libc::sockaddr_storage>() >=
