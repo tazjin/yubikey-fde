@@ -72,8 +72,27 @@ pub fn watch_ask_loop(mut timeout: u8) {
     }
 }
 
-fn get_challenge() -> &'static [u8] {
-    b"iCaiyoosashohm5yeiRi"
+/// Loads the challenge for a Yubikey from the associated file in
+/// /etc/ykfde.d/challenge-${yubikey_serial}.
+/// This function will panic if the file is not found or the challenge is not
+/// exactly 64 bytes in length, because those errors are not recoverable.
+fn get_challenge(yk_serial: u32) -> String {
+    let challenge_filepath = format!("/etc/ykfde.d/challenge-{}", yk_serial);
+    let mut challenge = String::new();
+    println!("Reading challenge from {}", challenge_filepath);
+    match fs::File::open(Path::new(&challenge_filepath)) {
+        Err(e) => panic!("No challenge found for Yubikey {}. Please enroll!",
+                         yk_serial),
+        Ok(mut file) => {
+            let challenge_len = file.read_to_string(&mut challenge).unwrap();
+            // Yubikey max challenge length is 64 bytes. It should also never be less.
+            if challenge_len != 64 {
+                panic!("Challenge must be exactly 64 bytes, was {}", challenge_len)
+            } else {
+                challenge
+            }
+        }
+    }
 }
 
 /// Handles an incoming inotify event. The return value does not indicate
@@ -94,8 +113,6 @@ fn handle_ask(filepath: &Path) -> bool {
 }
 
 fn parse_ask(file: &mut File, is_pw_ask: &mut bool) -> io::Result<()> {
-    let challenge = get_challenge();
-
     let mut file_content = String::new();
     try!(file.read_to_string(&mut file_content));
 
@@ -103,7 +120,7 @@ fn parse_ask(file: &mut File, is_pw_ask: &mut bool) -> io::Result<()> {
         *is_pw_ask = true;
         match capture_socket(&file_content) {
             None => Ok(()),
-            Some(socket) => handle_respond(challenge, &socket)
+            Some(socket) => handle_respond(&socket)
         }
     } else {
         Ok(())
@@ -129,9 +146,12 @@ fn capture_socket(content: &str) -> Option<String> {
     }
 }
 
-fn handle_respond(challenge: &[u8], socket_path: &str) -> io::Result<()> {
-    match get_response(challenge) {
-        Err(e) => panic!(e),
+fn handle_respond(socket_path: &str) -> io::Result<()> {
+    let yk = Yubikey::get_yubikey().unwrap(); // no Yubikey -> Panic!
+    let yk_serial = yk.get_serial().unwrap(); // same thing
+    let challenge = get_challenge(yk_serial);
+    match yk.challenge_response(2, &challenge.as_bytes(), false) {
+        Err(e) => panic!("{}", e),
         Ok(yk_response) => {
             let response = format!("+{}", yk_response);
             let path_cstr = CString::new(socket_path).unwrap();
