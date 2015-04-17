@@ -1,6 +1,9 @@
 #!/bin/bash
 
 build() {
+    # challenge files need to be in initram
+    add_full_dir /etc/ykfde.d/
+
     # add_systemd_unit will automatically add required binary
     add_systemd_unit systemd-ask-ykfde.path
     add_systemd_unit systemd-ask-ykfde.service

@@ -13,8 +13,15 @@ depends() {
 install() {
     inst_multiple \
         "/usr/bin/yubikey-fde" \
+        "/etc/ykfde.d/" \
         "${systemdsystemunitdir}/systemd-ask-ykfde.path" \
         "${systemdsystemunitdir}/systemd-ask-ykfde.service"
+
+    # Dracut doesn't seem to have a "copy directory" function built in
+    local file
+    for file in /etc/ykfde.d/*; do
+        inst "${file}"
+    done
 
     ln_r "${systemdsystemunitdir}/systemd-ask-ykfde.path" \
          "${systemdsystemunitdir}/sysinit.target.wants/systemd-ask-ykfde.path"
