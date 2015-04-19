@@ -3,4 +3,5 @@ rust: 1.0.0-beta
 addons:
   apt:
     packages:
+      - libykpers-1-1
       - libykpers-1-dev

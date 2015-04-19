@@ -3,8 +3,6 @@ Yubikey FDE
 
 [![Build Status](https://travis-ci.org/tazjin/yubikey-fde.svg)](https://travis-ci.org/tazjin/yubikey-fde)
 
-(Note that Travis builds are failing due to an [upstream blocker][]).
-
 ## Overview
 
 This project aims to provide reliable full-disk-encryption using Yubikey challenge-response functionality.
