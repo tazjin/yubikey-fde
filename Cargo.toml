@@ -5,6 +5,6 @@ authors = ["Vincent Ambo <vincent@kivra.com>"]
 
 [dependencies]
 inotify = "0.1.11"
-libc = "0.1.6"
+libc = "0.1.8"
 regex = "0.1.27"
 rustc-serialize = "0.3"

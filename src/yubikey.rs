@@ -19,13 +19,6 @@ extern {
                              response_len: c_uint, response: *mut u8) -> c_int;
 }
 
-/* When a YK_KEY goes out of scope, close the handle */
-impl Drop for YK_KEY {
-    fn drop(&mut self) {
-        unsafe { yk_close_key(self) };
-    }
-}
-
 /*****************************
  *  Safe interface to ykpers *
  *****************************/
@@ -63,6 +56,13 @@ fn last_yk_error() -> YubikeyError {
 pub struct Yubikey {
     /// Foreign pointer to the USB handle
     yk: *const YK_KEY
+}
+
+/* When a Yubikey goes out of scope, close the handle */
+impl Drop for Yubikey {
+    fn drop(&mut self) {
+        unsafe { yk_close_key(self.yk) };
+    }
 }
 
 impl Yubikey {
