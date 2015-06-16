@@ -13,7 +13,6 @@ depends() {
 install() {
     inst_multiple \
         "/usr/bin/yubikey-fde" \
-        "/etc/ykfde.d/" \
         "${systemdsystemunitdir}/systemd-ask-ykfde.path" \
         "${systemdsystemunitdir}/systemd-ask-ykfde.service"
 
