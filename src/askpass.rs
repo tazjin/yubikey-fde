@@ -1,8 +1,8 @@
 /* Implements a systemd password agent as per
 http://www.freedesktop.org/wiki/Software/systemd/PasswordAgents/ */
 
-use inotify::INotify;
-use inotify::ffi::*;
+use inotify::Inotify;
+use inotify::watch_mask::*;
 use std::ffi::{CString, OsStr};
 use std::fs::{self, File};
 use std::io::{self, Read, Error, ErrorKind};
@@ -46,21 +46,26 @@ fn handle_existing(filepath: &Path) -> bool {
 /// Watch systemd's ask password folder for incoming requests.
 #[allow(unused_must_use)]
 pub fn watch_ask_loop(mut timeout: u8) {
-    let mut ino = INotify::init().unwrap();
-    ino.add_watch(Path::new(SYSTEMD_ASK_PATH), IN_CLOSE_WRITE | IN_MOVED_TO).unwrap();
+    let mut ino = Inotify::init().unwrap();
+    let wd = ino.add_watch(Path::new(SYSTEMD_ASK_PATH), CLOSE_WRITE | MOVED_TO)
+        .expect("INotify setup for systemd's ask directory failed");
+
     let sec = time::Duration::from_secs(1);
 
     'outer: loop {
         if timeout <= 0 {
             // Why do these types mismatch in inotify-rs?
-            ino.rm_watch((IN_CLOSE_WRITE | IN_MOVED_TO) as i32);
+            ino.rm_watch(wd);
             break;
         }
 
-        let events = ino.available_events().unwrap();
-        for event in events.iter() {
-            if event.name.starts_with("ask.") {
-                let full_path = format!("{}/{}", SYSTEMD_ASK_PATH, event.name);
+        let mut buffer = Vec::new();
+        let events = ino.read_events_blocking(buffer.as_mut()).unwrap();
+
+        for event in events {
+            let name = event.name.to_str().unwrap().to_string();
+            if name.starts_with("ask.") {
+                let full_path = format!("{}/{}", SYSTEMD_ASK_PATH, name);
                 let filepath = Path::new(&full_path);
                 if handle_ask(&filepath) {
                     break 'outer;
