@@ -4,17 +4,16 @@ use std::fmt;
 use std::fmt::Write;
 use std::io;
 
-#[repr(C)]
-struct YK_KEY;
+enum YkKey {}
 
 #[link(name="ykpers-1")]
 extern {
     fn yk_init() -> c_int;
-    fn yk_open_first_key() -> *const YK_KEY;
-    fn yk_close_key(yk: *const YK_KEY) -> c_int;
-    fn yk_get_serial(yk: *const YK_KEY, slot: uint8_t, flags: c_uint,
+    fn yk_open_first_key() -> *const YkKey;
+    fn yk_close_key(yk: *const YkKey) -> c_int;
+    fn yk_get_serial(yk: *const YkKey, slot: uint8_t, flags: c_uint,
                      serial: *mut c_uint) -> c_int;
-    fn yk_challenge_response(yk: *const YK_KEY, yk_cmd: uint8_t, may_block: c_int,
+    fn yk_challenge_response(yk: *const YkKey, yk_cmd: uint8_t, may_block: c_int,
                              challenge_len: c_uint, challenge: *const uint8_t,
                              response_len: c_uint, response: *mut u8) -> c_int;
 }
@@ -55,7 +54,7 @@ fn last_yk_error() -> YubikeyError {
 /// for a USB device.
 pub struct Yubikey {
     /// Foreign pointer to the USB handle
-    yk: *const YK_KEY
+    yk: *const YkKey
 }
 
 /* When a Yubikey goes out of scope, close the handle */
