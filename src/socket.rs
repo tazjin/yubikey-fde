@@ -32,14 +32,6 @@ fn construct_sockaddr(path: &CString) -> Result<(libc::sockaddr_storage, usize)>
     return Ok((storage, len));
 }
 
-
-fn unix_socket(ty: libc::c_int) -> Result<RawFd> {
-    match unsafe { libc::socket(libc::AF_UNIX, ty, 0) } {
-        -1 => Err(Error::last_os_error()),
-        fd => Ok(fd)
-    }
-}
-
 pub struct UnixSocket {
     fd: RawFd,
 }

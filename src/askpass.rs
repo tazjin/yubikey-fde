@@ -87,7 +87,7 @@ fn get_challenge(yk_serial: u32) -> String {
     let mut challenge = String::new();
     println!("Reading challenge from {}", challenge_filepath);
     match fs::File::open(Path::new(&challenge_filepath)) {
-        Err(e) => panic!("No challenge found for Yubikey {}. Please enroll!",
+        Err(_) => panic!("No challenge found for Yubikey {}. Please enroll!",
                          yk_serial),
         Ok(mut file) => {
             let challenge_len = file.read_to_string(&mut challenge).unwrap();
@@ -165,9 +165,4 @@ fn handle_respond(socket_path: &str) -> io::Result<()> {
             socket.sendto(&response.as_bytes(), &path_cstr)
         }
     }
-}
-
-fn get_response(challenge: &[u8]) -> Result<String, YubikeyError> {
-    let yk = try!(Yubikey::get_yubikey());
-    yk.challenge_response(2, &challenge, false)
 }

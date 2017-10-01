@@ -1,6 +1,3 @@
-#![allow(unused_variables)]
-#![allow(dead_code)]
-
 extern crate inotify;
 extern crate libc;
 extern crate regex;
