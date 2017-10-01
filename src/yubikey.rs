@@ -1,7 +1,7 @@
 use libc::{c_int, c_uint, uint8_t};
-use rustc_serialize::hex::ToHex;
 use std::error::Error;
 use std::fmt;
+use std::fmt::Write;
 use std::io;
 
 #[repr(C)]
@@ -73,7 +73,7 @@ impl Yubikey {
         if yk.is_null() { // Probably no Yubikey connected
             Err(YubikeyError::NoYubikeyConnected)
         } else {
-            Ok(Yubikey{ yk: yk })
+            Ok(Yubikey{ yk })
         }
     }
 
@@ -107,11 +107,11 @@ impl Yubikey {
     pub fn challenge_response(&self, slot: u8, challenge: &[u8],
                               may_block: bool) -> Result<String, YubikeyError> {
         // Yubikey commands are defined in ykdef.h
-        let yk_cmd = try!(match slot {
+        let yk_cmd = match slot {
             1 => Ok(0x30), //#define SLOT_CHAL_HMAC1 0x30
             2 => Ok(0x38), //#define SLOT_CHAL_HMAC2 0x38
             _ => Err(YubikeyError::InvalidYubikeySlot)
-        });
+        }?;
 
         let challenge_len = challenge.len() as c_uint;
 
@@ -121,7 +121,7 @@ impl Yubikey {
 
         let response_len = 64; // Length of HMAC-SHA1 response
 
-        let mut response = Vec::with_capacity(response_len as usize);
+        let mut response: Vec<u8> = Vec::with_capacity(response_len as usize);
 
         let rc = unsafe {
             let cr_status =
@@ -136,7 +136,12 @@ impl Yubikey {
         if rc == 0 {
             Err(last_yk_error())
         } else {
-            let mut response_str = (&mut response).to_hex();
+            let mut response_str = String::new();
+
+            for c in response {
+                write!(&mut response_str, "{:x}", c).unwrap();
+            }
+
             response_str.truncate(40);
             Ok(response_str)
         }

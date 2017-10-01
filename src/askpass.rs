@@ -7,7 +7,7 @@ use std::ffi::{CString, OsStr};
 use std::fs::{self, File};
 use std::io::{self, Read, Error, ErrorKind};
 use std::path::Path;
-use std::thread::sleep_ms;
+use std::{thread, time};
 use regex::Regex;
 
 use socket;
@@ -48,6 +48,7 @@ fn handle_existing(filepath: &Path) -> bool {
 pub fn watch_ask_loop(mut timeout: u8) {
     let mut ino = INotify::init().unwrap();
     ino.add_watch(Path::new(SYSTEMD_ASK_PATH), IN_CLOSE_WRITE | IN_MOVED_TO).unwrap();
+    let sec = time::Duration::from_secs(1);
 
     'outer: loop {
         if timeout <= 0 {
@@ -68,7 +69,7 @@ pub fn watch_ask_loop(mut timeout: u8) {
         }
 
         timeout -= 1;
-        sleep_ms(1000);
+        thread::sleep(sec);
     }
 }
 
